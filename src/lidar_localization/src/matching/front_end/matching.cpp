@@ -1,8 +1,3 @@
-/*
- * @Description: LIO localization frontend, implementation
- * @Author: Ge Yao
- * @Date: 2021-01-02 10:47:23
- */
 #include "lidar_localization/matching/front_end/matching.hpp"
 
 #include "glog/logging.h"

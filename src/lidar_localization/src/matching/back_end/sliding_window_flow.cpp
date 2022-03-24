@@ -1,8 +1,3 @@
-/*
- * @Description: lio localization backend workflow, implementation
- * @Author: Ge Yao
- * @Date: 2020-11-29 15:47:49
- */
 #include "lidar_localization/matching/back_end/sliding_window_flow.hpp"
 
 #include "glog/logging.h"

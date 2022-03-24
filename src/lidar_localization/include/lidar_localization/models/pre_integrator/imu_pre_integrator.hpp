@@ -26,11 +26,11 @@ public:
 
         // a. measurement:
         // a.1. relative translation:
-        Eigen::Vector3d alpha_ij_;
+        Eigen::Vector3d    alpha_ij_;
         // a.2. relative orientation:
-        Sophus::SO3d theta_ij_;
+        Eigen::Quaterniond theta_ij_ = Eigen::Quaterniond::Identity();
         // a.3. relative velocity:
-        Eigen::Vector3d beta_ij_;
+        Eigen::Vector3d    beta_ij_;
         // a.4. accel bias:
         Eigen::Vector3d b_a_i_;
         // a.5. gyro bias:
@@ -49,7 +49,10 @@ public:
             Vector15d measurement = Vector15d::Zero();
 
             measurement.block<3, 1>(0, 0) = alpha_ij_;
-            measurement.block<3, 1>(3, 0) = theta_ij_.log();
+
+            Sophus::SO3d theta_(theta_ij_);
+            measurement.block<3, 1>(3, 0) = theta_.log(); 
+
             measurement.block<3, 1>(6, 0) = beta_ij_;
 
             return measurement;
@@ -136,7 +139,7 @@ private:
         // a. relative translation:
         Eigen::Vector3d alpha_ij_;
         // b. relative orientation:
-        Sophus::SO3d theta_ij_;
+        Eigen::Quaterniond theta_ij_ = Eigen::Quaterniond::Identity();
         // c. relative velocity:
         Eigen::Vector3d beta_ij_;
         // d. accel bias:

@@ -143,7 +143,11 @@ void IMUPreIntegrator::ResetState(const IMUData &init_imu_data) {
     // a. reset relative translation:
     pre_int_state.alpha_ij_ = Eigen::Vector3d::Zero();
     // b. reset relative orientation:
-    pre_int_state.theta_ij_ = Sophus::SO3d();
+    pre_int_state.theta_ij_ = Eigen::Quaterniond::Identity();
+
+    static int count = 0;
+    std::cout << " IMUPreIntegrator::ResetState " << ++count << std::endl;
+
     // c. reset relative velocity:
     pre_int_state.beta_ij_ = Eigen::Vector3d::Zero();
     // d. set init bias, acceleometer:
@@ -181,15 +185,12 @@ void IMUPreIntegrator::UpdateState(void) {
     static Eigen::Vector3d w_mid = Eigen::Vector3d::Zero();
     static Eigen::Vector3d a_mid = Eigen::Vector3d::Zero();
 
-    static Sophus::SO3d prev_theta_ij = Sophus::SO3d();
-    static Sophus::SO3d curr_theta_ij = Sophus::SO3d();
-    static Sophus::SO3d d_theta_ij = Sophus::SO3d();
-
-    static Eigen::Matrix3d dR_inv = Eigen::Matrix3d::Zero();
-    static Eigen::Matrix3d prev_R = Eigen::Matrix3d::Zero();
-    static Eigen::Matrix3d curr_R = Eigen::Matrix3d::Zero();
-    static Eigen::Matrix3d prev_R_a_hat = Eigen::Matrix3d::Zero();
-    static Eigen::Matrix3d curr_R_a_hat = Eigen::Matrix3d::Zero();
+    static Eigen::Quaterniond prev_theta_ij = Eigen::Quaterniond::Identity();
+    static Eigen::Quaterniond curr_theta_ij = Eigen::Quaterniond::Identity();
+    static Eigen::Quaterniond d_theta_ij = Eigen::Quaterniond::Identity();
+    
+    static int count = 0;
+    std::cout << " IMUPreIntegrator::UpdateState" << ++count << std::endl;
 
     //
     // parse measurements:
@@ -224,7 +225,7 @@ void IMUPreIntegrator::UpdateState(void) {
         curr_imu_data.linear_acceleration.z - pre_int_state.b_a_i_.z()
     );
 
-    std::cout << std::endl;
+    /*std::cout << std::endl;
     std::cout << "bias accel: " <<
                  pre_int_state.b_a_i_.x() << " " << 
                  pre_int_state.b_a_i_.y() << " " << 
@@ -236,17 +237,18 @@ void IMUPreIntegrator::UpdateState(void) {
                  pre_int_state.b_g_i_.x() << " " << 
                  pre_int_state.b_g_i_.y() << " " << 
                  pre_int_state.b_g_i_.z() << " " << std::endl;
-    std::cout << std::endl;
+    std::cout << std::endl;*/
 
     //
     // a. update mean:
     //
     // 1. get w_mid:
-    w_mid = 0.5 * ( prev_w + curr_w );
-    // 2. update relative orientation, so3:
+    w_mid = 0.5 * (prev_w + curr_w);
+
+    // 2. update relative orientation:
     prev_theta_ij = pre_int_state.theta_ij_;
-    d_theta_ij = Sophus::SO3d::exp(w_mid * T);
-    pre_int_state.theta_ij_ = pre_int_state.theta_ij_ * d_theta_ij;
+    d_theta_ij = Eigen::Quaterniond(1.0, w_mid(0) * T / 2, w_mid(1) * T / 2, w_mid(2) * T / 2);
+    pre_int_state.theta_ij_ = d_theta_ij * pre_int_state.theta_ij_;
     curr_theta_ij = pre_int_state.theta_ij_;
     
     // 3. get a_mid:
@@ -254,6 +256,7 @@ void IMUPreIntegrator::UpdateState(void) {
     
     // 4. update relative translation:
     pre_int_state.alpha_ij_ += (pre_int_state.beta_ij_ + 0.5 * a_mid * T) * T;
+
     // 5. update relative velocity:
     pre_int_state.beta_ij_ += a_mid * T;
 
@@ -262,53 +265,68 @@ void IMUPreIntegrator::UpdateState(void) {
     //
     // 1. intermediate results:
     // dR_inv = d_theta_ij.inverse().matrix();
-    dR_inv = Eigen::Matrix3d::Identity() - Sophus::SO3d::hat(w_mid) * T;
-    prev_R = prev_theta_ij.matrix();
-    curr_R = curr_theta_ij.matrix();
-    prev_R_a_hat = prev_R * Sophus::SO3d::hat(prev_a);
-    curr_R_a_hat = curr_R * Sophus::SO3d::hat(curr_a);
+    Eigen::Matrix3d R_w_x, R_a_0_x, R_a_1_x;
 
+    R_w_x <<     0.0, -w_mid(2),  w_mid(1),
+            w_mid(2),       0.0, -w_mid(0),
+           -w_mid(1),  w_mid(0),       0.0;
+
+    R_a_0_x <<       0.0, -prev_a(2),  prev_a(1),
+               prev_a(2),        0.0, -prev_a(0),
+              -prev_a(1),  prev_a(0),        0.0;
+
+    R_a_1_x <<       0.0, -curr_a(2),  curr_a(1),
+               curr_a(2),        0.0, -curr_a(0),
+              -curr_a(1),  curr_a(0),        0.0;
+
+    double T2 = T * T;
+    double T3 = T2 * T;
     //
     // 2. set up F:
     //
-    // F12 & F32:
-    F_.block<3, 3>(INDEX_ALPHA, INDEX_THETA) = F_.block<3, 3>(INDEX_BETA, INDEX_THETA) = -0.50 * (prev_R_a_hat + curr_R_a_hat * dR_inv);
-    F_.block<3, 3>(INDEX_ALPHA, INDEX_THETA) = 0.50 * T * F_.block<3, 3>(INDEX_ALPHA, INDEX_THETA);
-    // F14 & F34:
-    F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_A) = F_.block<3, 3>(INDEX_BETA,   INDEX_B_A) = -0.50 * (prev_R + curr_R);
-    F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_A) = 0.50 * T * F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_A);
-    // F15 & F35:
-    F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_G) = F_.block<3, 3>(INDEX_BETA,   INDEX_B_G) = +0.50 * T * curr_R_a_hat;
-    F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_G) = 0.50 * T * F_.block<3, 3>(INDEX_ALPHA,   INDEX_B_G);
-    // F22:
-    F_.block<3, 3>(INDEX_THETA, INDEX_THETA) = -Sophus::SO3d::hat(w_mid);
+    F_.block<3, 3>(0, 0)  = Eigen::Matrix3d::Identity();
+    F_.block<3, 3>(0, 3)  = -0.25 * prev_theta_ij.toRotationMatrix() * R_a_0_x * T2 + 
+                            -0.25 * curr_theta_ij.toRotationMatrix() * R_a_1_x * (Eigen::Matrix3d::Identity() - R_w_x * T) * T2;
+    F_.block<3, 3>(0, 6)  = Eigen::MatrixXd::Identity(3,3) * T;
+    F_.block<3, 3>(0, 9)  = -0.25 * (prev_theta_ij.toRotationMatrix() + curr_theta_ij.toRotationMatrix()) * T2;
+    F_.block<3, 3>(0, 12) = 0.25 * curr_theta_ij.toRotationMatrix() * R_a_1_x * T3;
+    F_.block<3, 3>(3, 3)  = Eigen::Matrix3d::Identity() - R_w_x * T;
+    F_.block<3, 3>(3, 12) = -1.0 * Eigen::MatrixXd::Identity(3,3) * T;
+    F_.block<3, 3>(6, 3)  = -0.5 * prev_theta_ij.toRotationMatrix() * R_a_0_x * T + 
+                            -0.5 * curr_theta_ij.toRotationMatrix() * R_a_1_x * (Eigen::Matrix3d::Identity() - R_w_x * T) * T;
+    F_.block<3, 3>(6, 6)   = Eigen::Matrix3d::Identity();
+    F_.block<3, 3>(6, 9)   = -0.5 * (prev_theta_ij.toRotationMatrix() + curr_theta_ij.toRotationMatrix()) * T;
+    F_.block<3, 3>(6, 12)  = 0.5 * curr_theta_ij.toRotationMatrix() * R_a_1_x * T2;
+    F_.block<3, 3>(9, 9)   = Eigen::Matrix3d::Identity();
+    F_.block<3, 3>(12, 12) = Eigen::Matrix3d::Identity();
 
     //
     // 3. set up G:
     //
     // G11 & G31:
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_PREV) = B_.block<3, 3>(INDEX_BETA, INDEX_M_ACC_PREV) = +0.50 * prev_R;
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_PREV) = 0.50 * T * B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_PREV);
-    // G12 & G32:
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_PREV) = B_.block<3, 3>(INDEX_BETA, INDEX_M_GYR_PREV) = -0.25 * T * curr_R_a_hat;
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_PREV) = 0.50 * T * B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_PREV);
-    // G13 & G33:
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_CURR) = B_.block<3, 3>(INDEX_BETA, INDEX_M_ACC_CURR) = 0.5 * curr_R;
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_CURR) = 0.50 * T * B_.block<3, 3>(INDEX_ALPHA, INDEX_M_ACC_CURR);
-    // G14 & G34:
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_CURR) = B_.block<3, 3>(INDEX_BETA, INDEX_M_GYR_CURR) = -0.25 * T * curr_R_a_hat;
-    B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_CURR) = 0.50 * T * B_.block<3, 3>(INDEX_ALPHA, INDEX_M_GYR_CURR);
+    B_.block<3, 3>(0, 0) =  0.25 * prev_theta_ij.toRotationMatrix() * T2;
+    B_.block<3, 3>(0, 3) =  0.25 * -curr_theta_ij.toRotationMatrix() * R_a_1_x * 0.5 * T3;
+    B_.block<3, 3>(0, 6) =  0.25 * curr_theta_ij.toRotationMatrix() * T2;
+    B_.block<3, 3>(0, 9) =  B_.block<3, 3>(0, 3);
+    B_.block<3, 3>(3, 3) =  0.5 * Eigen::MatrixXd::Identity(3,3) * T;
+    B_.block<3, 3>(3, 9) =  0.5 * Eigen::MatrixXd::Identity(3,3) * T;
+    B_.block<3, 3>(6, 0) =  0.5 * prev_theta_ij.toRotationMatrix() * T;
+    B_.block<3, 3>(6, 3) =  0.5 * -curr_theta_ij.toRotationMatrix() * R_a_1_x * 0.5 * T2;
+    B_.block<3, 3>(6, 6) =  0.5 * curr_theta_ij.toRotationMatrix() * T;
+    B_.block<3, 3>(6, 9) =  B_.block<3, 3>(6, 3);
+    B_.block<3, 3>(9, 12) = Eigen::MatrixXd::Identity(3,3) * T;
+    B_.block<3, 3>(12, 15) = Eigen::MatrixXd::Identity(3,3) * T;
 
     // 4. update P_:
-    MatrixF F = MatrixF::Identity() + T * F_;
-    MatrixB B = T * B_;
+    //MatrixF F = MatrixF::Identity() + T * F_;
+    //MatrixB B = T * B_;
 
-    P_ = F * P_ * F.transpose() + B * Q_ * B.transpose();
+    P_ = F_ * P_ * F_.transpose() + B_ * Q_ * B_.transpose();
 
     // 
     // c. update Jacobian:
     //
-    J_ = F * J_;
+    J_ = F_ * J_;
 }
 
 } // namespace lidar_localization

@@ -8,30 +8,30 @@ data_path: ./
 #
 key_frame:
     # max. distance between two key frames:
-    max_distance: 0.25
+    max_distance: 2.0
     # max. time interval between two key frames:
-    max_interval: 0.10
+    max_interval: 0.20
 
 #
 # sliding window size:
 #
-sliding_window_size: 100
+sliding_window_size: 20
 
 #
 # select measurements:
 # 
 measurements:
-    map_matching: false
+    map_matching: true
     imu_pre_integration: true
 
 #
 # measurement configs:
 #
 lidar_odometry:
-    noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
+    noise: [1.5e-1, 1.5e-1, 1.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
 
 map_matching:
-    noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
+    noise: [1.5e-1, 1.5e-1, 1.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
 
 gnss_position:
     noise: [1.0, 1.0, 4.0] # x y z
@@ -42,8 +42,8 @@ imu_pre_integration:
         gravity_magnitude: 9.80943
     covariance:
         measurement:
-            accel: 2.5e-1
-            gyro: 1.0e-1
+            accel: 5.5e-1
+            gyro: 3.0e-1
         random_walk:
             accel: 1.0
-            gyro: 1.5
+            gyro: 1.0

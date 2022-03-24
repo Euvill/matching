@@ -1,8 +1,3 @@
-/*
- * @Description: lio localization backend workflow, implementation
- * @Author: Ge Yao
- * @Date: 2020-11-29 15:47:49
- */
 #include "lidar_localization/matching/back_end/sliding_window.hpp"
 
 #include <Eigen/Dense>
@@ -108,7 +103,6 @@ bool SlidingWindow::UpdateIMUPreIntegration(const IMUData &imu_data) {
     
     if (!imu_pre_integrator_ptr_->IsInited() || imu_pre_integrator_ptr_->Update(imu_data))
         return true;
-    
 
     return false;
 }
@@ -311,14 +305,15 @@ bool SlidingWindow::Update(void) {
     }
 
     double delta_time = current_key_frame_.time - last_key_frame_.time;
+    if (imu_pre_integrator_ptr_) {
+        double accel_rd = imu_pre_integrator_ptr_->COV.RANDOM_WALK.ACCEL;
+        Eigen::Vector3f tmp_accel(accel_rd, accel_rd, accel_rd);
+        current_key_frame_.bias.accel = delta_time * tmp_accel;
 
-    double accel_rd = imu_pre_integrator_ptr_->COV.RANDOM_WALK.ACCEL;
-    Eigen::Vector3f tmp_accel(accel_rd, accel_rd, accel_rd);
-    current_key_frame_.bias.accel = delta_time * tmp_accel;
-
-    double gyro_rd = imu_pre_integrator_ptr_->COV.RANDOM_WALK.GYRO;
-    Eigen::Vector3f tmp_gyro(gyro_rd, gyro_rd, gyro_rd);
-    current_key_frame_.bias.gyro  = delta_time * tmp_gyro;
+        double gyro_rd = imu_pre_integrator_ptr_->COV.RANDOM_WALK.GYRO;
+        Eigen::Vector3f tmp_gyro(gyro_rd, gyro_rd, gyro_rd);
+        current_key_frame_.bias.gyro  = delta_time * tmp_gyro;
+    }
 
     /*std::cout << std::endl;
     std::cout << "bias accel: " <<
@@ -371,6 +366,7 @@ bool SlidingWindow::Update(void) {
 }
 
 bool SlidingWindow::MaybeOptimized() {    
+
     if (sliding_window_ptr_->Optimize()) {
 
         has_new_optimized_ = true;

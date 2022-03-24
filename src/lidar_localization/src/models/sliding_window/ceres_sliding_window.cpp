@@ -1,9 +1,3 @@
-/*
- * @Description: ceres sliding window optimizer, implementation
- * @Author: Ge Yao
- * @Date: 2021-01-03 14:53:21
- */
-
 #include "lidar_localization/models/sliding_window/ceres_sliding_window.hpp"
 
 #include <sophus/so3.hpp>
@@ -208,107 +202,82 @@ bool CeresSlidingWindow::Optimize() {
     // get key frames count:
     const int N = GetNumParamBlocks();
 
+    if (N <= 1)
+        return false;
 
-    if (kWindowSize + 1 <= N) {
-        // create new sliding window optimization problem:
-        ceres::Problem problem;
+    std::cout << "CeresSlidingWindow::Optimize(): " << N << std::endl;
 
-        // a. add parameter blocks:
-        for (int i = 1; i <= kWindowSize + 1; ++i) {
-            auto &target_key_frame = optimized_key_frames_.at(N - i);
+    ceres::Problem problem;
 
-            ceres::LocalParameterization *local_parameterization = new sliding_window::ParamPRVAG();
-            
-            // 用于用户显式传递参数模块，LocalParameterization参数，用于重构优化参数的维数
-            problem.AddParameterBlock(target_key_frame.prvag, 15, local_parameterization);
-
-            if (target_key_frame.fixed) {
-                // 设定对应的参数模块在优化过程中保持不变
-                problem.SetParameterBlockConstant(target_key_frame.prvag);
-            }
-        }
-
-        // add residual blocks:
-        // b.1. marginalization constraint:
-        if (!residual_blocks_.map_matching_pose.empty() && !residual_blocks_.relative_pose.empty() && !residual_blocks_.imu_pre_integration.empty()) {
-            auto &key_frame_m = optimized_key_frames_.at(N - kWindowSize - 1);
-            auto &key_frame_r = optimized_key_frames_.at(N - kWindowSize - 0);
-
-            const ceres::CostFunction *factor_map_matching_pose   = GetResMapMatchingPose(  residual_blocks_.map_matching_pose.front());
-            const ceres::CostFunction *factor_relative_pose       = GetResRelativePose(     residual_blocks_.relative_pose.front());
-            const ceres::CostFunction *factor_imu_pre_integration = GetResIMUPreIntegration(residual_blocks_.imu_pre_integration.front());
-
-            sliding_window::FactorPRVAGMarginalization *factor_marginalization = new sliding_window::FactorPRVAGMarginalization();
-
-            factor_marginalization->SetResMapMatchingPose(  factor_map_matching_pose,   std::vector<double *>{key_frame_m.prvag});
-            factor_marginalization->SetResRelativePose(     factor_relative_pose,       std::vector<double *>{key_frame_m.prvag, key_frame_r.prvag});
-            factor_marginalization->SetResIMUPreIntegration(factor_imu_pre_integration, std::vector<double *>{key_frame_m.prvag, key_frame_r.prvag});
-
-            factor_marginalization->Marginalize(key_frame_r.prvag);
-
-            // add marginalization factor into sliding window
-            problem.AddResidualBlock(factor_marginalization, NULL, key_frame_r.prvag);
-
-            residual_blocks_.map_matching_pose.pop_front();
-            residual_blocks_.relative_pose.pop_front();
-            residual_blocks_.imu_pre_integration.pop_front();
-        }
-
-        // b.2. map matching pose constraint:
-        if (!residual_blocks_.map_matching_pose.empty()) {
-            for ( const auto &residual_map_matching_pose: residual_blocks_.map_matching_pose) {
-                auto &key_frame = optimized_key_frames_.at(residual_map_matching_pose.param_index);
-
-                sliding_window::FactorPRVAGMapMatchingPose *factor_map_matching_pose = GetResMapMatchingPose(residual_map_matching_pose);
-                // add map matching factor into sliding window
-                problem.AddResidualBlock(factor_map_matching_pose, NULL, key_frame.prvag);
-            }            
-        }
-
-        // b.3. relative pose constraint:
-        if (!residual_blocks_.relative_pose.empty()) {
-            for ( const auto &residual_relative_pose: residual_blocks_.relative_pose) {
-                auto &key_frame_i = optimized_key_frames_.at(residual_relative_pose.param_index_i);
-                auto &key_frame_j = optimized_key_frames_.at(residual_relative_pose.param_index_j);
-
-                sliding_window::FactorPRVAGRelativePose *factor_relative_pose = GetResRelativePose(residual_relative_pose);
-                // add relative pose factor into sliding window
-                problem.AddResidualBlock(factor_relative_pose, NULL, key_frame_i.prvag, key_frame_j.prvag);
-            }
-        }
-
-        // b.4. IMU pre-integration constraint
-        if (!residual_blocks_.imu_pre_integration.empty()) {
-            for (const auto &residual_imu_pre_integration: residual_blocks_.imu_pre_integration) {
-                auto &key_frame_i = optimized_key_frames_.at(residual_imu_pre_integration.param_index_i);
-                auto &key_frame_j = optimized_key_frames_.at(residual_imu_pre_integration.param_index_j);
-
-                sliding_window::FactorPRVAGIMUPreIntegration *factor_imu_pre_integration = GetResIMUPreIntegration(residual_imu_pre_integration);
-
-                // add IMU factor into sliding window
-                problem.AddResidualBlock(factor_imu_pre_integration, NULL, key_frame_i.prvag, key_frame_j.prvag);
-            }
-        }
-
-        // solve:
-        ceres::Solver::Summary summary;
-
-        auto start = std::chrono::steady_clock::now();
-        ceres::Solve(config_.options, &problem, &summary);
-        auto end = std::chrono::steady_clock::now();
-        std::chrono::duration<double> time_used = end - start;
-
-        // prompt:
-        LOG(INFO) << "------ Finish Iteration " << optimization_count << " of Sliding Window Optimization -------" << std::endl
-                  << "Time Used: " << time_used.count() << " seconds." << std::endl
-                  << "Cost Reduced: " << summary.initial_cost - summary.final_cost << std::endl
-                  << summary.BriefReport() << std::endl
-                  << std::endl;
+    for (int i = 0; i < optimized_key_frames_.size(); ++i) {
         
-        return true;
+        auto &target_key_frame = optimized_key_frames_.at(i);
+
+        ceres::LocalParameterization *local_parameterization = new sliding_window::ParamPRVAG();
+            
+        // 用于用户显式传递参数模块，LocalParameterization参数，用于重构优化参数的维数
+        problem.AddParameterBlock(target_key_frame.prvag, 15, local_parameterization);
+
+        if (target_key_frame.fixed) {
+            // 设定对应的参数模块在优化过程中保持不变
+            problem.SetParameterBlockConstant(target_key_frame.prvag);
+        }
+     }
+        
+    // b.2. map matching pose constraint:
+    if (!residual_blocks_.map_matching_pose.empty()) {
+        for (const auto &residual_map_matching_pose: residual_blocks_.map_matching_pose) {
+
+            auto &key_frame = optimized_key_frames_.at(residual_map_matching_pose.param_index);
+
+            sliding_window::FactorPRVAGMapMatchingPose *factor_map_matching_pose = GetResMapMatchingPose(residual_map_matching_pose);
+            // add map matching factor into sliding window
+            problem.AddResidualBlock(factor_map_matching_pose, NULL, key_frame.prvag);
+        }            
     }
 
-    return false;
+    // b.3. relative pose constraint:
+    if (!residual_blocks_.relative_pose.empty()) {
+        for (const auto &residual_relative_pose: residual_blocks_.relative_pose) {
+            auto &key_frame_i = optimized_key_frames_.at(residual_relative_pose.param_index_i);
+            auto &key_frame_j = optimized_key_frames_.at(residual_relative_pose.param_index_j);
+
+            sliding_window::FactorPRVAGRelativePose *factor_relative_pose = GetResRelativePose(residual_relative_pose);
+            // add relative pose factor into sliding window
+            problem.AddResidualBlock(factor_relative_pose, NULL, key_frame_i.prvag, key_frame_j.prvag);
+        }
+    }
+
+    // b.4. IMU pre-integration constraint
+   if (!residual_blocks_.imu_pre_integration.empty()) {
+        for (const auto &residual_imu_pre_integration: residual_blocks_.imu_pre_integration) {
+            auto &key_frame_i = optimized_key_frames_.at(residual_imu_pre_integration.param_index_i);
+            auto &key_frame_j = optimized_key_frames_.at(residual_imu_pre_integration.param_index_j);
+
+            sliding_window::FactorPRVAGIMUPreIntegration *factor_imu_pre_integration = GetResIMUPreIntegration(residual_imu_pre_integration);
+
+            // add IMU factor into sliding window
+            problem.AddResidualBlock(factor_imu_pre_integration, NULL, key_frame_i.prvag, key_frame_j.prvag);
+        }
+    }
+
+    // solve:
+    ceres::Solver::Summary summary;
+
+    auto start = std::chrono::steady_clock::now();
+    ceres::Solve(config_.options, &problem, &summary);
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> time_used = end - start;
+
+    // prompt:
+    LOG(INFO) << "------ Finish Iteration " << optimization_count << " of Sliding Window Optimization -------" << std::endl
+              << "Time Used: " << time_used.count() << " seconds." << std::endl
+              << "Cost Reduced: " << summary.initial_cost - summary.final_cost << std::endl
+              << summary.BriefReport() << std::endl
+              << std::endl;
+
+    return true;
+
 }
 
 int CeresSlidingWindow::GetNumParamBlocks() {
