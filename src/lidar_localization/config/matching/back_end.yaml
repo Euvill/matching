@@ -11,6 +11,8 @@ key_frame:
     max_distance: 2.0
     # max. time interval between two key frames:
     max_interval: 0.20
+    # max. number of key frames to optimized:
+    max_key_frame_interval: 50
 
 #
 # sliding window size:
@@ -42,8 +44,8 @@ imu_pre_integration:
         gravity_magnitude: 9.80943
     covariance:
         measurement:
-            accel: 5.5e-1
-            gyro: 3.0e-1
+            accel: 1.0
+            gyro: 1.0
         random_walk:
             accel: 1.0
             gyro: 1.0

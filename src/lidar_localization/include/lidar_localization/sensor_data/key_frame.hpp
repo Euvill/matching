@@ -34,27 +34,18 @@ public:
 
     KeyFrame() {}
 
-    explicit KeyFrame(const int param_index, const double &T, const double *prvag) {
+    explicit KeyFrame(const int param_index, const double &T, const double *pr) {
       // set time:
       time = T;
       // set seq. ID:
       index = param_index;
       // set state:
-      Eigen::Map<const Eigen::Vector3d>     pos(prvag + 0);
-      Eigen::Map<const Eigen::Vector3d> log_ori(prvag + 3);
-      Eigen::Map<const Eigen::Vector3d>       v(prvag + 6);
-      Eigen::Map<const Eigen::Vector3d>     b_a(prvag + 9);
-      Eigen::Map<const Eigen::Vector3d>     b_g(prvag + 12);
+      Eigen::Map<const Eigen::Vector3d>    pos(pr + 0);
+      Eigen::Map<const Eigen::Quaterniond> ori(pr + 3);
 
       pose.block<3, 1>(0, 3) = pos.cast<float>();
-      pose.block<3, 3>(0, 0) = Sophus::SO3d::exp(log_ori).matrix().cast<float>();
-
-      vel.v = v.cast<float>();
-      
-      bias.accel = b_a.cast<float>();
-      bias.gyro = b_g.cast<float>();
+      pose.block<3, 3>(0, 0) = ori.toRotationMatrix().cast<float>();
     }
-
 
     Eigen::Quaternionf GetQuaternion() const;
     Eigen::Vector3f GetTranslation() const;

@@ -1,4 +1,4 @@
-#include "lidar_localization/matching/back_end/sliding_window_flow.hpp"
+#include "lidar_localization/matching/back_end/back_end_flow.hpp"
 
 #include "glog/logging.h"
 
@@ -7,9 +7,7 @@
 
 namespace lidar_localization {
 
-SlidingWindowFlow::SlidingWindowFlow(
-    ros::NodeHandle& nh
-) {
+BackEndFlow::BackEndFlow(ros::NodeHandle& nh) {
     //
     // subscribers:
     //
@@ -32,21 +30,21 @@ SlidingWindowFlow::SlidingWindowFlow(
     key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/n_frame", 100);
     // c. optimized odometry:
     optimized_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/optimized_odometry", "/n_frame", "/lidar_frame", 100);
-
+    key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/n_frame", 100);
     //
     // backend:
     //
-    sliding_window_ptr_ = std::make_shared<SlidingWindow>();
+    back_end_ptr_ = std::make_shared<BackEnd>();
 }
 
-bool SlidingWindowFlow::Run() {
+bool BackEndFlow::Run() {
     // load messages into buffer:
-    if ( !ReadData() )
+    if (!ReadData())
         return false;
     
-    while( HasData() ) {
+    while(HasData()) {
         // make sure all the measurements are synced:
-        if ( !ValidData() )
+        if (!ValidData())
             continue;
 
         UpdateBackEnd();
@@ -56,13 +54,13 @@ bool SlidingWindowFlow::Run() {
     return true;
 }
 
-bool SlidingWindowFlow::SaveOptimizedTrajectory() {
-    sliding_window_ptr_ -> SaveOptimizedTrajectory();
+bool BackEndFlow::SaveOptimizedTrajectory() {
+    back_end_ptr_ -> SaveOptimizedTrajectory();
 
     return true;
 }
 
-bool SlidingWindowFlow::ReadData() {
+bool BackEndFlow::ReadData() {
     // a. lidar odometry:
     laser_odom_sub_ptr_->ParseData(laser_odom_data_buff_);
     // b. map matching odometry:
@@ -76,20 +74,14 @@ bool SlidingWindowFlow::ReadData() {
     return true;
 }
 
-bool SlidingWindowFlow::HasData() {
-    if (
-        laser_odom_data_buff_.empty() ||
-        map_matching_odom_data_buff_.empty() ||
-        imu_synced_data_buff_.empty() ||
-        gnss_pose_data_buff_.empty() 
-    ) {
+bool BackEndFlow::HasData() {
+    if (laser_odom_data_buff_.empty() || map_matching_odom_data_buff_.empty() || imu_synced_data_buff_.empty() || gnss_pose_data_buff_.empty()) 
         return false;
-    }
 
     return true;
 }
 
-bool SlidingWindowFlow::ValidData() {
+bool BackEndFlow::ValidData() {
     current_laser_odom_data_ = laser_odom_data_buff_.front();
     current_map_matching_odom_data_ = map_matching_odom_data_buff_.front();
     current_imu_data_ = imu_synced_data_buff_.front();
@@ -127,37 +119,22 @@ bool SlidingWindowFlow::ValidData() {
     return true;
 }
 
-bool SlidingWindowFlow::UpdateIMUPreIntegration(void) {
-    while (
-        !imu_raw_data_buff_.empty() && 
-        imu_raw_data_buff_.front().time < current_imu_data_.time && 
-        sliding_window_ptr_->UpdateIMUPreIntegration(imu_raw_data_buff_.front())
-    ) {
-        imu_raw_data_buff_.pop_front();
-    }
-
-    return true;
-}
-
-bool SlidingWindowFlow::UpdateBackEnd() {
+bool BackEndFlow::UpdateBackEnd() {
     static bool odometry_inited = false;
     static Eigen::Matrix4f odom_init_pose = Eigen::Matrix4f::Identity();
 
-    if ( !odometry_inited ) {
+    if (!odometry_inited) {
         // the origin of lidar odometry frame in map frame as init pose:
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
 
         odometry_inited = true;
     }
     
-    // update IMU pre-integration:
-    UpdateIMUPreIntegration();
-    
     // current lidar odometry in map frame:
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
 
     // optimization is carried out in map frame:
-    return sliding_window_ptr_->Update(
+    return back_end_ptr_->Update(
         current_laser_odom_data_, 
         current_map_matching_odom_data_,
         current_imu_data_,
@@ -165,21 +142,25 @@ bool SlidingWindowFlow::UpdateBackEnd() {
     );
 }
 
-bool SlidingWindowFlow::PublishData() {
-    if ( sliding_window_ptr_->HasNewKeyFrame() ) {        
+bool BackEndFlow::PublishData() {
+    if (back_end_ptr_->HasNewKeyFrame()) {        
         KeyFrame key_frame;
 
-        sliding_window_ptr_->GetLatestKeyFrame(key_frame);
+        back_end_ptr_->GetLatestKeyFrame(key_frame);
         key_frame_pub_ptr_->Publish(key_frame);
 
-        sliding_window_ptr_->GetLatestKeyGNSS(key_frame);
+        back_end_ptr_->GetLatestKeyGNSS(key_frame);
         key_gnss_pub_ptr_->Publish(key_frame);
     }
 
-    if ( sliding_window_ptr_->HasNewOptimized() ) {
-        KeyFrame key_frame;
-        sliding_window_ptr_->GetLatestOptimizedOdometry(key_frame);
-        optimized_odom_pub_ptr_->Publish(key_frame.pose, key_frame.time);
+    if (back_end_ptr_->HasNewOptimized()) {
+        //KeyFrame key_frame;
+        //back_end_ptr_->GetLatestOptimizedOdometry(key_frame);
+        //optimized_odom_pub_ptr_->Publish(key_frame.pose, key_frame.time);
+
+        std::deque<KeyFrame> optimized_key_frames;
+        back_end_ptr_->GetOptimizedKeyFrames(optimized_key_frames);
+        key_frames_pub_ptr_->Publish(optimized_key_frames);
     }
 
     return true;

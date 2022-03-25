@@ -68,7 +68,7 @@ add_executable(lio_matching_node src/apps/lio_matching_node.cpp ${ALL_SRCS})
 add_dependencies(lio_matching_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lio_matching_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(sliding_window_node src/apps/sliding_window_node.cpp ${ALL_SRCS})
-add_dependencies(sliding_window_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(sliding_window_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(back_end_node src/apps/back_end_node.cpp ${ALL_SRCS})
+add_dependencies(back_end_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(back_end_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 

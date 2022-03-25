@@ -21,23 +21,23 @@
 #include "lidar_localization/publisher/key_frame_publisher.hpp"
 #include "lidar_localization/publisher/key_frames_publisher.hpp"
 
-#include "lidar_localization/matching/back_end/sliding_window.hpp"
+#include "lidar_localization/matching/back_end/back_end.hpp"
 
 
 namespace lidar_localization {
 
-class SlidingWindowFlow {
+class BackEndFlow {
 public:
-    SlidingWindowFlow(ros::NodeHandle& nh);
+    BackEndFlow(ros::NodeHandle& nh);
 
     bool Run();
     bool SaveOptimizedTrajectory();
-    
+
   private:
     bool ReadData();
     bool HasData();
     bool ValidData();
-    bool UpdateIMUPreIntegration(void);
+
     bool UpdateBackEnd();
     bool PublishData();
 
@@ -63,14 +63,15 @@ public:
     //
     // publishers:
     //
-    std::shared_ptr<KeyFramePublisher> key_frame_pub_ptr_;
-    std::shared_ptr<KeyFramePublisher> key_gnss_pub_ptr_;
-    std::shared_ptr<OdometryPublisher> optimized_odom_pub_ptr_;
+    std::shared_ptr<KeyFramePublisher>  key_frame_pub_ptr_;
+    std::shared_ptr<KeyFramePublisher>  key_gnss_pub_ptr_;
+    std::shared_ptr<OdometryPublisher>  optimized_odom_pub_ptr_;
+    std::shared_ptr<KeyFramesPublisher> key_frames_pub_ptr_;
 
     //
     // backend:
     //
-    std::shared_ptr<SlidingWindow> sliding_window_ptr_;
+    std::shared_ptr<BackEnd> back_end_ptr_;
 
     //
     // synced data:

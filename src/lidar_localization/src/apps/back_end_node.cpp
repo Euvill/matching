@@ -6,7 +6,7 @@
 #include <ros/ros.h>
 
 #include "lidar_localization/global_defination/global_defination.h"
-#include "lidar_localization/matching/back_end/sliding_window_flow.hpp"
+#include "lidar_localization/matching/back_end/back_end_flow.hpp"
 #include "lidar_localization/saveOdometry.h"
 
 #include "glog/logging.h"
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     FLAGS_log_dir = WORK_SPACE_PATH + "/Log";
     FLAGS_alsologtostderr = 1;
 
-    ros::init(argc, argv, "sliding_window_node");
+    ros::init(argc, argv, "back_end_node");
     ros::NodeHandle nh;
 
     //
@@ -39,22 +39,23 @@ int main(int argc, char *argv[]) {
     // publish:
     // 
     // a. optimized key frame sequence as trajectory
-    std::shared_ptr<SlidingWindowFlow> sliding_window_flow_ptr = std::make_shared<SlidingWindowFlow>(nh);
-
+    std::shared_ptr<BackEndFlow> back_end_flow_ptr = std::make_shared<BackEndFlow>(nh);
+    
     // register service for optimized trajectory save:
     ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCb);
 
     ros::Rate rate(10);
+
     while (ros::ok()) {
         ros::spinOnce();
 
-        sliding_window_flow_ptr->Run();
+        back_end_flow_ptr->Run();
 
         if (save_odometry) {
             save_odometry = false;
-            sliding_window_flow_ptr->SaveOptimizedTrajectory();
+            back_end_flow_ptr->SaveOptimizedTrajectory();
         }
-
+        
         rate.sleep();
     }
 

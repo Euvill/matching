@@ -1,8 +1,3 @@
-/*
- * @Description: LIO localization backend, interface
- * @Author: Ge Yao
- * @Date: 2020-11-29 15:47:49
- */
 #ifndef LIDAR_LOCALIZATION_MATCHING_BACK_END_SLIDING_WINDOW_HPP_
 #define LIDAR_LOCALIZATION_MATCHING_BACK_END_SLIDING_WINDOW_HPP_
 
@@ -16,22 +11,18 @@
 
 #include "lidar_localization/sensor_data/key_frame.hpp"
 
-#include "lidar_localization/models/pre_integrator/imu_pre_integrator.hpp"
-
-#include "lidar_localization/models/sliding_window/ceres_sliding_window.hpp"
-
+#include "lidar_localization/models/ceres_back_end/ceres_back_end.hpp"
 
 namespace lidar_localization {
 
-class SlidingWindow {
+class BackEnd {
   public:
-    SlidingWindow();
+    BackEnd();
 
-    bool UpdateIMUPreIntegration(const IMUData &imu_data);
     bool Update(
       const PoseData &laser_odom,
       const PoseData &map_matching_odom,
-      IMUData &imu_data, 
+      const IMUData &imu_data, 
       const PoseData& gnss_pose
     );
 
@@ -49,8 +40,7 @@ class SlidingWindow {
 
     bool InitDataPath(const YAML::Node& config_node);
     bool InitKeyFrameSelection(const YAML::Node& config_node);
-    bool InitSlidingWindow(const YAML::Node& config_node);
-    bool InitIMUPreIntegrator(const YAML::Node& config_node);
+    bool InitOptimizer(const YAML::Node& config_node);
 
     void ResetParam();
     bool SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose);
@@ -58,11 +48,11 @@ class SlidingWindow {
     bool MaybeNewKeyFrame(
       const PoseData& laser_odom, 
       const PoseData &map_matching_odom,
-      IMUData &imu_data,
+      const IMUData &imu_data,
       const PoseData& gnss_pose
     );
     
-    bool Update(void);
+    bool UpdateOptimizer(void);
     bool MaybeOptimized();
 
   private:
@@ -83,17 +73,18 @@ class SlidingWindow {
     } key_frames_;
 
     // pre-integrator:
-    std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
-    IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
+    //std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
+    //IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
 
     // key frame config:
     struct {
       float max_distance;
       float max_interval;
+      int   max_key_frame_interval;
     } key_frame_config_;
 
     // optimizer:
-    std::shared_ptr<CeresSlidingWindow> sliding_window_ptr_;
+    std::shared_ptr<CeresBackEnd> ceres_back_end_ptr_;
 
     // measurement config:
     struct MeasurementConfig {
@@ -109,6 +100,20 @@ class SlidingWindow {
         } noise;
     };
     MeasurementConfig measurement_config_;
+
+
+    struct {
+      int key_frame = 0;
+
+      bool HasEnoughKeyFrames(const int num_key_frames_thresh) {
+        if ( key_frame >= num_key_frames_thresh ) {
+          key_frame = 0;
+          return true;
+        }
+
+        return false;
+      }
+    } counter_;
 };
 
 } // namespace lidar_localization
