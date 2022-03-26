@@ -18,6 +18,7 @@ namespace lidar_localization {
 class BackEnd {
   public:
     BackEnd();
+    bool UpdateIMUPreIntegration(const IMUData &imu_data);
 
     bool Update(
       const PoseData &laser_odom,
@@ -41,6 +42,7 @@ class BackEnd {
     bool InitDataPath(const YAML::Node& config_node);
     bool InitKeyFrameSelection(const YAML::Node& config_node);
     bool InitOptimizer(const YAML::Node& config_node);
+    bool InitIMUPreIntegrator(const YAML::Node& config_node);
 
     void ResetParam();
     bool SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose);
@@ -73,8 +75,8 @@ class BackEnd {
     } key_frames_;
 
     // pre-integrator:
-    //std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
-    //IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
+    std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
+    IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
 
     // key frame config:
     struct {
@@ -100,7 +102,6 @@ class BackEnd {
         } noise;
     };
     MeasurementConfig measurement_config_;
-
 
     struct {
       int key_frame = 0;

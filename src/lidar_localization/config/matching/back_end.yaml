@@ -30,10 +30,10 @@ measurements:
 # measurement configs:
 #
 lidar_odometry:
-    noise: [1.5e-1, 1.5e-1, 1.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
+    noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
 
 map_matching:
-    noise: [1.5e-1, 1.5e-1, 1.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
+    noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # x y z yaw roll pitch
 
 gnss_position:
     noise: [1.0, 1.0, 4.0] # x y z
@@ -44,8 +44,11 @@ imu_pre_integration:
         gravity_magnitude: 9.80943
     covariance:
         measurement:
-            accel: 1.0
-            gyro: 1.0
+            accel: 5.0e-2
+            gyro: 5.0e-2
         random_walk:
-            accel: 1.0
-            gyro: 1.0
+            accel: 3.0e-4
+            gyro: 3.0e-4
+    bias:
+        accel: 0.01
+        gyro: 0.01

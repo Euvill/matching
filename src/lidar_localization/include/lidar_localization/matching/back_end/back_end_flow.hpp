@@ -37,7 +37,7 @@ public:
     bool ReadData();
     bool HasData();
     bool ValidData();
-
+    bool UpdateIMUPreIntegration();
     bool UpdateBackEnd();
     bool PublishData();
 

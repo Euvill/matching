@@ -16,7 +16,7 @@ BackEndFlow::BackEndFlow(ros::NodeHandle& nh) {
     // b. map matching odometry:
     map_matching_odom_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/map_matching_odometry", 100000);
     // c. IMU measurement, for pre-integration:
-    imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu/extract", 1000000);
+    imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu", 1000000);
     imu_synced_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 100000);
     // d. GNSS position:
     gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
@@ -119,6 +119,17 @@ bool BackEndFlow::ValidData() {
     return true;
 }
 
+bool BackEndFlow::UpdateIMUPreIntegration(void) {
+
+    while (!imu_raw_data_buff_.empty() && 
+            imu_raw_data_buff_.front().time < current_imu_data_.time && 
+            back_end_ptr_->UpdateIMUPreIntegration(imu_raw_data_buff_.front())) {
+        imu_raw_data_buff_.pop_front();
+    }
+
+    return true;
+}
+
 bool BackEndFlow::UpdateBackEnd() {
     static bool odometry_inited = false;
     static Eigen::Matrix4f odom_init_pose = Eigen::Matrix4f::Identity();
@@ -129,6 +140,9 @@ bool BackEndFlow::UpdateBackEnd() {
 
         odometry_inited = true;
     }
+    
+    // update IMU pre-integration:
+    UpdateIMUPreIntegration();
     
     // current lidar odometry in map frame:
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;

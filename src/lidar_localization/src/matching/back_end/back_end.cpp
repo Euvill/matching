@@ -4,6 +4,7 @@
 #include <pcl/io/pcd_io.h>
 #include "glog/logging.h"
 
+#include "lidar_localization/sensor_data/speed_bias.hpp"
 #include "lidar_localization/global_defination/global_defination.h"
 #include "lidar_localization/tools/file_manager.hpp"
 
@@ -22,12 +23,10 @@ bool BackEnd::InitWithConfig() {
 
     std::cout << "-----------------Init LIO Localization, Backend-------------------" << std::endl;
 
-    // a. estimation output path:
     InitDataPath(config_node);
-    // b. key frame selection config:
     InitKeyFrameSelection(config_node);
-    // c. sliding window config:
     InitOptimizer(config_node);
+    InitIMUPreIntegrator(config_node);
 
     return true;
 }
@@ -81,6 +80,33 @@ bool BackEnd::InitOptimizer(const YAML::Node& config_node) {
     }
 
     return true;
+}
+
+bool BackEnd::InitIMUPreIntegrator(const YAML::Node& config_node) {
+    imu_pre_integrator_ptr_ = nullptr;
+    
+    if (measurement_config_.source.imu_pre_integration) {
+        imu_pre_integrator_ptr_ = std::make_shared<IMUPreIntegrator>(config_node["imu_pre_integration"]);
+    }
+
+    return true;
+}
+
+bool BackEnd::UpdateIMUPreIntegration(const IMUData &imu_data) {
+    if (!measurement_config_.source.imu_pre_integration || nullptr == imu_pre_integrator_ptr_ ){
+        return false;
+    }
+
+    if(!imu_pre_integrator_ptr_->IsInited()){
+        if (imu_pre_integrator_ptr_) 
+            imu_pre_integrator_ptr_->Init(imu_data, imu_pre_integration_);
+    }
+    
+    if (imu_pre_integrator_ptr_->Update(imu_data, imu_pre_integration_)) { 
+        return true;
+    }
+
+    return false;
 }
 
 bool BackEnd::Update(const PoseData &laser_odom, const PoseData &map_matching_odom, const IMUData &imu_data, const PoseData& gnss_pose) {
@@ -179,9 +205,15 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
     if (key_frames_.lidar.empty()) 
     {
         has_new_key_frame_ = true;
+        if (imu_pre_integrator_ptr_) {
+            imu_pre_integrator_ptr_->Init(imu_data, imu_pre_integration_);
+        }
     } 
     else if ((laser_odom.pose.block<3,1>(0, 3) - last_key_frame.pose.block<3,1>(0, 3)).lpNorm<1>() > key_frame_config_.max_distance || (laser_odom.time - last_key_frame.time) > key_frame_config_.max_interval)
     {
+        if (imu_pre_integrator_ptr_) {
+            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
+        }
         has_new_key_frame_ = true;
     } 
     else
@@ -193,6 +225,7 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
         current_key_frame_.time  = laser_odom.time;
         current_key_frame_.index = key_frames_.lidar.size();
         current_key_frame_.pose  = laser_odom.pose;
+
         current_key_frame_.vel.v = gnss_odom.vel.v;
         current_key_frame_.vel.w = gnss_odom.vel.w;
 
@@ -218,10 +251,30 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
 bool BackEnd::UpdateOptimizer(void) {
     static KeyFrame last_key_frame_ = current_key_frame_;
 
-    if (ceres_back_end_ptr_->GetNumParamBlocks() == 0)
+    if (ceres_back_end_ptr_->GetNumParamBlocks() == 0) {
         ceres_back_end_ptr_->AddPRParam(current_key_frame_, true);
-    else
+
+        SpeedBias speed_bias;
+        speed_bias.time  = current_key_frame_.time;
+        speed_bias.index = current_key_frame_.index;
+        speed_bias.vel   = current_key_frame_.vel.v.cast<double>();
+        speed_bias.ba    = imu_pre_integration_.linearized_ba;
+        speed_bias.bg    = imu_pre_integration_.linearized_bg;
+
+        ceres_back_end_ptr_->AddVAGParam(speed_bias, false);
+    }
+    else {
         ceres_back_end_ptr_->AddPRParam(current_key_frame_, false);
+        
+        SpeedBias speed_bias;
+        speed_bias.time  = current_key_frame_.time;
+        speed_bias.index = current_key_frame_.index;
+        speed_bias.vel   = current_key_frame_.vel.v.cast<double>();
+        speed_bias.ba    = imu_pre_integration_.linearized_ba;
+        speed_bias.bg    = imu_pre_integration_.linearized_bg;
+
+        ceres_back_end_ptr_->AddVAGParam(speed_bias, false);
+    }
 
     const int N = ceres_back_end_ptr_->GetNumParamBlocks();
     const int param_index_j = N - 1;
@@ -235,6 +288,9 @@ bool BackEnd::UpdateOptimizer(void) {
         const int param_index_i = N - 2;
         Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
         ceres_back_end_ptr_->AddRelativePoseFactor(param_index_i, param_index_j, relative_pose, measurement_config_.noise.lidar_odometry);
+        
+        if (measurement_config_.source.imu_pre_integration) 
+            ceres_back_end_ptr_->AddIMUPreIntegrationFactor(param_index_i, param_index_j, param_index_i, param_index_j, imu_pre_integration_);
     }
 
     last_key_frame_ = current_key_frame_;

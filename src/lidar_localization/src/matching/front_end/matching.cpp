@@ -213,8 +213,8 @@ bool Matching::Update(
     }
 
     // init the map matching pose as laser pose:
-    // map_matching_pose = laser_pose;
-    map_matching_pose = current_gnss_pose_;
+    map_matching_pose = laser_pose;
+    // map_matching_pose = current_gnss_pose_;
 
     return true;
 }
