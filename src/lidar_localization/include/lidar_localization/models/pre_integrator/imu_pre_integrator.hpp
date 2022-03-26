@@ -63,6 +63,8 @@ public:
     bool Update(const IMUData &imu_data, IMUPreIntegration &imu_pre_integratio);
     bool Reset(const IMUData &init_imu_data, IMUPreIntegration &imu_pre_integration);
 
+    void showIMUPreIntegration(const IMUPreIntegration &imu_pre_integration);
+
 private:
     double sum_dt_ = 0;
 
@@ -96,7 +98,6 @@ private:
     Vector3d linearized_bg_;
 
     void ResetState(const IMUData &init_imu_data, IMUPreIntegration &imu_pre_integration);
-    void showIMUPreIntegration(const IMUPreIntegration &imu_pre_integration);
     void MidPointIntegration(double dt,
                              const Vector3d &acc0, const Vector3d &gyr0,
                              const Vector3d &acc1, const Vector3d &gyr1,

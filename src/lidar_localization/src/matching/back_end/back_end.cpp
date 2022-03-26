@@ -60,6 +60,8 @@ bool BackEnd::InitOptimizer(const YAML::Node& config_node) {
     const int sliding_window_size = config_node["sliding_window_size"].as<int>();
     ceres_back_end_ptr_ = std::make_shared<CeresBackEnd>(sliding_window_size);
 
+    pre_int_visibility_ = config_node["pre_int_visibility"].as<bool>();
+
     // select measurements:
     measurement_config_.source.map_matching = config_node["measurements"]["map_matching"].as<bool>();
     measurement_config_.source.imu_pre_integration = config_node["measurements"]["imu_pre_integration"].as<bool>();
@@ -113,7 +115,7 @@ bool BackEnd::Update(const PoseData &laser_odom, const PoseData &map_matching_od
     ResetParam();
 
     if (MaybeNewKeyFrame(laser_odom, map_matching_odom, imu_data, gnss_pose)) {
-        UpdateOptimizer();
+        UpdateOptimizer(imu_data);
         MaybeOptimized();
     }
 
@@ -211,9 +213,6 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
     } 
     else if ((laser_odom.pose.block<3,1>(0, 3) - last_key_frame.pose.block<3,1>(0, 3)).lpNorm<1>() > key_frame_config_.max_distance || (laser_odom.time - last_key_frame.time) > key_frame_config_.max_interval)
     {
-        if (imu_pre_integrator_ptr_) {
-            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
-        }
         has_new_key_frame_ = true;
     } 
     else
@@ -248,7 +247,7 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
     return has_new_key_frame_;
 }
 
-bool BackEnd::UpdateOptimizer(void) {
+bool BackEnd::UpdateOptimizer(const IMUData &imu_data) {
     static KeyFrame last_key_frame_ = current_key_frame_;
 
     if (ceres_back_end_ptr_->GetNumParamBlocks() == 0) {
@@ -289,8 +288,16 @@ bool BackEnd::UpdateOptimizer(void) {
         Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
         ceres_back_end_ptr_->AddRelativePoseFactor(param_index_i, param_index_j, relative_pose, measurement_config_.noise.lidar_odometry);
         
-        if (measurement_config_.source.imu_pre_integration) 
+        if (measurement_config_.source.imu_pre_integration) {
+            if(pre_int_visibility_)
+                imu_pre_integrator_ptr_->showIMUPreIntegration(imu_pre_integration_);
+
             ceres_back_end_ptr_->AddIMUPreIntegrationFactor(param_index_i, param_index_j, param_index_i, param_index_j, imu_pre_integration_);
+
+            if (imu_pre_integrator_ptr_) 
+                imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
+        }
+            
     }
 
     last_key_frame_ = current_key_frame_;

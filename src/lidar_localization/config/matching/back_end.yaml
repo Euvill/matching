@@ -12,19 +12,21 @@ key_frame:
     # max. time interval between two key frames:
     max_interval: 0.20
     # max. number of key frames to optimized:
-    max_key_frame_interval: 200
+    max_key_frame_interval: 50
 
 #
 # sliding window size:
 #
 sliding_window_size: 20
 
+pre_int_visibility: true
+
 #
 # select measurements:
 # 
 measurements:
     map_matching: true
-    imu_pre_integration: false
+    imu_pre_integration: true
 
 #
 # measurement configs:
@@ -44,11 +46,11 @@ imu_pre_integration:
         gravity_magnitude: 9.80943
     covariance:
         measurement:
-            accel: 5.0e-2
-            gyro: 5.0e-2
+            accel: 5.0e-5
+            gyro: 5.0e-5
         random_walk:
-            accel: 3.0e-4
-            gyro: 3.0e-4
+            accel: 3.0e-6
+            gyro: 3.0e-6
     bias:
         accel: 0.01
         gyro: 0.01

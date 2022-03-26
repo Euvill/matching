@@ -54,7 +54,7 @@ class BackEnd {
       const PoseData& gnss_pose
     );
     
-    bool UpdateOptimizer(void);
+    bool UpdateOptimizer(const IMUData &imu_data);
     bool MaybeOptimized();
 
   private:
@@ -102,6 +102,8 @@ class BackEnd {
         } noise;
     };
     MeasurementConfig measurement_config_;
+
+    bool pre_int_visibility_ = false;
 
     struct {
       int key_frame = 0;
