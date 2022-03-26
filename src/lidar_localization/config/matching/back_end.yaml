@@ -12,7 +12,7 @@ key_frame:
     # max. time interval between two key frames:
     max_interval: 0.20
     # max. number of key frames to optimized:
-    max_key_frame_interval: 50
+    max_key_frame_interval: 200
 
 #
 # sliding window size:

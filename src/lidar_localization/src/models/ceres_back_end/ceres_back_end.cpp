@@ -150,11 +150,13 @@ bool CeresBackEnd::Optimize() {
     ceres::Problem problem;
 
     for (int i = 0; i < N; ++i) {
-        auto &target_key_frame = optimized_key_frames_.at(i);
+        auto &target_key_frame  = optimized_key_frames_.at(i);
+        auto &target_speed_bias = optimized_speed_bias_.at(i);
 
         ceres::LocalParameterization *local_parameterization = new ParamPR();
 
         problem.AddParameterBlock(target_key_frame.pr, 7, local_parameterization);
+        problem.AddParameterBlock(target_speed_bias.vag, 9);
 
         if (target_key_frame.fixed) {
             problem.SetParameterBlockConstant(target_key_frame.pr);

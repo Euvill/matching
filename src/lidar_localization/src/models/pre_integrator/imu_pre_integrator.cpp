@@ -42,6 +42,9 @@ IMUPreIntegrator::IMUPreIntegrator(const YAML::Node& node) {
               << "\t\trandom_walk:" << std::endl
               << "\t\t\taccel.: " << COV.RANDOM_WALK.ACCEL << std::endl
               << "\t\t\tgyro.: " << COV.RANDOM_WALK.GYRO << std::endl
+              << "\t\tzero_bias:" << std::endl
+              << "\t\t\taccel.: " << BIAS.ACCEL << std::endl
+              << "\t\t\tgyro.: " << BIAS.GYRO << std::endl
               << std::endl;
 
     // a. gravity constant:
