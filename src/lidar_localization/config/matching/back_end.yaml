@@ -24,7 +24,7 @@ sliding_window_size: 20
 # 
 measurements:
     map_matching: true
-    imu_pre_integration: true
+    imu_pre_integration: false
 
 #
 # measurement configs:
