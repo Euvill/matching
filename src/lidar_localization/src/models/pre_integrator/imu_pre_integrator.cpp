@@ -169,7 +169,7 @@ void IMUPreIntegrator::MidPointIntegration(double dt,
     Vector3d un_acc_0 = delta_q * (acc0 - linearized_ba);
     Vector3d un_gyr = 0.5 * (gyr0 + gyr1) - linearized_bg;
 
-    result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * dt / 2, un_gyr(1) * dt / 2, un_gyr(2) * dt / 2);
+    result_delta_q = (delta_q * Quaterniond(1, un_gyr(0) * dt / 2, un_gyr(1) * dt / 2, un_gyr(2) * dt / 2)).normalized();
 
     Vector3d un_acc_1 = result_delta_q * (acc1 - linearized_ba);
     Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
@@ -177,14 +177,14 @@ void IMUPreIntegrator::MidPointIntegration(double dt,
     result_delta_p = delta_p + delta_v * dt + 0.5 * un_acc * dt * dt;
     result_delta_v = delta_v + un_acc * dt;
 
-    double bia_ = rng_.gaussian(COV.RANDOM_WALK.ACCEL);
-    double big_ = rng_.gaussian(COV.RANDOM_WALK.GYRO);
+    //double bia_ = rng_.gaussian(COV.RANDOM_WALK.ACCEL);
+    //double big_ = rng_.gaussian(COV.RANDOM_WALK.GYRO);
 
-    Vector3d bia(bia_, bia_, bia_);
-    Vector3d big(big_, big_, big_);
+    //Vector3d bia(bia_, bia_, bia_);
+    //Vector3d big(big_, big_, big_);
 
-    result_linearized_ba = linearized_ba + bia;
-    result_linearized_bg = linearized_bg + big;
+    result_linearized_ba = linearized_ba;// + bia;
+    result_linearized_bg = linearized_bg;// + big;
 
     if (update_jacobian) {
         Vector3d w_x = 0.5 * (gyr0 + gyr1) - linearized_bg;

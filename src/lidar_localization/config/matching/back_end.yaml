@@ -8,9 +8,9 @@ data_path: ./
 #
 key_frame:
     # max. distance between two key frames:
-    max_distance: 2.0
+    max_distance: 1.0
     # max. time interval between two key frames:
-    max_interval: 0.20
+    max_interval: 0.10
     # max. number of key frames to optimized:
     max_key_frame_interval: 50
 
@@ -49,8 +49,8 @@ imu_pre_integration:
             accel: 5.0e-5
             gyro: 5.0e-5
         random_walk:
-            accel: 1.0e-6
-            gyro: 1.0e-6
+            accel: 6.0e-6
+            gyro: 6.0e-6
     bias:
         accel: 0
         gyro: 0
