@@ -19,7 +19,7 @@ key_frame:
 #
 sliding_window_size: 20
 
-pre_int_visibility: true
+pre_int_visibility: false
 
 #
 # select measurements:
@@ -52,5 +52,5 @@ imu_pre_integration:
             accel: 3.0e-6
             gyro: 3.0e-6
     bias:
-        accel: 0.01
-        gyro: 0.01
+        accel: 0
+        gyro: 0

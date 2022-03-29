@@ -144,79 +144,108 @@ bool CeresBackEnd::Optimize() {
     
     const int N = GetNumParamBlocks();
 
-    if (N <= 1)
-        return false;
+    if (kWindowSize + 1 <= N){
+        ceres::Problem problem;
 
-    ceres::Problem problem;
+        for (int i = 1; i <= kWindowSize + 1; ++i) {
+            auto &target_key_frame  = optimized_key_frames_.at(N - i);
+            auto &target_speed_bias = optimized_speed_bias_.at(N - i);
 
-    for (int i = 0; i < N; ++i) {
-        auto &target_key_frame  = optimized_key_frames_.at(i);
-        auto &target_speed_bias = optimized_speed_bias_.at(i);
+            ceres::LocalParameterization *local_parameterization = new ParamPR();
 
-        ceres::LocalParameterization *local_parameterization = new ParamPR();
+            problem.AddParameterBlock(target_key_frame.pr, 7, local_parameterization);
+            problem.AddParameterBlock(target_speed_bias.vag, 9);
 
-        problem.AddParameterBlock(target_key_frame.pr, 7, local_parameterization);
-        problem.AddParameterBlock(target_speed_bias.vag, 9);
-
-        if (target_key_frame.fixed) {
-            problem.SetParameterBlockConstant(target_key_frame.pr);
+            if (target_key_frame.fixed) {
+                problem.SetParameterBlockConstant(target_key_frame.pr);
+                problem.SetParameterBlockConstant(target_key_frame.pr);
+            }
         }
-    }
+        
+        if (!residual_blocks_.map_matching_pose.empty() && !residual_blocks_.relative_pose.empty() && !residual_blocks_.imu_pre_integration.empty()) {
+            auto &key_frame_m = optimized_key_frames_.at(N - kWindowSize - 1);
+            auto &key_frame_r = optimized_key_frames_.at(N - kWindowSize - 0);
 
-    if (!residual_blocks_.map_matching_pose.empty()) {
-        for (const auto &residual_map_matching_pose: residual_blocks_.map_matching_pose) {
+            auto &speed_bias_m = optimized_speed_bias_.at(N - kWindowSize - 1);
+            auto &speed_bias_r = optimized_speed_bias_.at(N - kWindowSize - 0);
 
-            auto &key_frame = optimized_key_frames_.at(residual_map_matching_pose.param_index);
+            const ceres::CostFunction *factor_map_matching_pose   = GetResMapMatchingPose(residual_blocks_.map_matching_pose.front());
+            const ceres::CostFunction *factor_relative_pose       = GetResRelativePose(residual_blocks_.relative_pose.front());
+            const ceres::CostFunction *factor_imu_pre_integration = GetResIMUPreIntegration(residual_blocks_.imu_pre_integration.front());
 
-            FactorMapMatchingPose *factor_map_matching_pose = GetResMapMatchingPose(residual_map_matching_pose);
+            FactorMarginalization *factor_marginalization = new FactorMarginalization();
 
-            problem.AddResidualBlock(factor_map_matching_pose, NULL, key_frame.pr);
-        }            
-    }
+            factor_marginalization->SetResMapMatchingPose(factor_map_matching_pose, std::vector<double *>{key_frame_m.pr});
+            factor_marginalization->SetResRelativePose(factor_relative_pose, std::vector<double *>{key_frame_m.pr, key_frame_r.pr});
+            factor_marginalization->SetResIMUPreIntegration(factor_imu_pre_integration, std::vector<double *>{key_frame_m.pr, speed_bias_m.vag, key_frame_r.pr, speed_bias_r.vag});
+            factor_marginalization->Marginalize(key_frame_r.pr, speed_bias_r.vag);
 
-    if (!residual_blocks_.relative_pose.empty()) {
-        for (const auto &residual_relative_pose: residual_blocks_.relative_pose) {
+            // add marginalization factor into sliding window
+            problem.AddResidualBlock(factor_marginalization, NULL, key_frame_r.pr, speed_bias_r.vag);
 
-            auto &key_frame_i = optimized_key_frames_.at(residual_relative_pose.param_index_i);
-            auto &key_frame_j = optimized_key_frames_.at(residual_relative_pose.param_index_j);
-
-            FactorRelativePose *factor_relative_pose = GetResRelativePose(residual_relative_pose);
-
-            problem.AddResidualBlock(factor_relative_pose, NULL, key_frame_i.pr, key_frame_j.pr);
-        } 
-    }
-
-    if (!residual_blocks_.imu_pre_integration.empty()) {
-        for (const auto &residual_imu_pre_integration: residual_blocks_.imu_pre_integration) {
-
-            auto &key_frame_i  = optimized_key_frames_.at(residual_imu_pre_integration.param_index_i);
-            auto &key_frame_j  = optimized_key_frames_.at(residual_imu_pre_integration.param_index_j);
-
-            auto &speed_bias_i = optimized_speed_bias_.at(residual_imu_pre_integration.speedbias_index_i);
-            auto &speed_bias_j = optimized_speed_bias_.at(residual_imu_pre_integration.speedbias_index_j);
-
-            FactorIMUPreIntegration *factor_imu_pre_integration = GetResIMUPreIntegration(residual_imu_pre_integration);
-
-            problem.AddResidualBlock(factor_imu_pre_integration, NULL, key_frame_i.pr, speed_bias_i.vag, key_frame_j.pr, speed_bias_j.vag);
+            residual_blocks_.map_matching_pose.pop_front();
+            residual_blocks_.relative_pose.pop_front();
+            residual_blocks_.imu_pre_integration.pop_front();
         }
+
+        if (!residual_blocks_.map_matching_pose.empty()) {
+            for (const auto &residual_map_matching_pose: residual_blocks_.map_matching_pose) {
+
+                auto &key_frame = optimized_key_frames_.at(residual_map_matching_pose.param_index);
+
+                FactorMapMatchingPose *factor_map_matching_pose = GetResMapMatchingPose(residual_map_matching_pose);
+
+                problem.AddResidualBlock(factor_map_matching_pose, NULL, key_frame.pr);
+            }            
+        }
+
+        if (!residual_blocks_.relative_pose.empty()) {
+            for (const auto &residual_relative_pose: residual_blocks_.relative_pose) {
+
+                auto &key_frame_i = optimized_key_frames_.at(residual_relative_pose.param_index_i);
+                auto &key_frame_j = optimized_key_frames_.at(residual_relative_pose.param_index_j);
+
+                FactorRelativePose *factor_relative_pose = GetResRelativePose(residual_relative_pose);
+
+                problem.AddResidualBlock(factor_relative_pose, NULL, key_frame_i.pr, key_frame_j.pr);
+            } 
+        }
+
+        if (!residual_blocks_.imu_pre_integration.empty()) {
+            for (const auto &residual_imu_pre_integration: residual_blocks_.imu_pre_integration) {
+
+                auto &key_frame_i  = optimized_key_frames_.at(residual_imu_pre_integration.param_index_i);
+                auto &key_frame_j  = optimized_key_frames_.at(residual_imu_pre_integration.param_index_j);
+
+                auto &speed_bias_i = optimized_speed_bias_.at(residual_imu_pre_integration.speedbias_index_i);
+                auto &speed_bias_j = optimized_speed_bias_.at(residual_imu_pre_integration.speedbias_index_j);
+
+                FactorIMUPreIntegration *factor_imu_pre_integration = GetResIMUPreIntegration(residual_imu_pre_integration);
+
+                problem.AddResidualBlock(factor_imu_pre_integration, NULL, key_frame_i.pr, speed_bias_i.vag, key_frame_j.pr, speed_bias_j.vag);
+            }
+        }
+
+        // solve:
+        ceres::Solver::Summary summary;
+
+        auto start = std::chrono::steady_clock::now();
+        ceres::Solve(config_.options, &problem, &summary);
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> time_used = end-start;
+
+        // prompt:
+        LOG(INFO) << "------ Finish Iteration " << optimization_count << " of Sliding Window Optimization -------" << std::endl
+                << "Time Used: " << time_used.count() << " seconds." << std::endl
+                << "Cost Reduced: " << summary.initial_cost - summary.final_cost << std::endl
+                << summary.BriefReport() << std::endl
+                << std::endl;
+
+        return true;
     }
 
-    // solve:
-    ceres::Solver::Summary summary;
-
-    auto start = std::chrono::steady_clock::now();
-    ceres::Solve(config_.options, &problem, &summary);
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> time_used = end-start;
-
-    // prompt:
-    LOG(INFO) << "------ Finish Iteration " << optimization_count << " of Sliding Window Optimization -------" << std::endl
-              << "Time Used: " << time_used.count() << " seconds." << std::endl
-              << "Cost Reduced: " << summary.initial_cost - summary.final_cost << std::endl
-              << summary.BriefReport() << std::endl
-              << std::endl;
-
-    return true;
+    return false;
+ 
 }
 
 int CeresBackEnd::GetNumParamBlocks() {

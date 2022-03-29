@@ -4,7 +4,7 @@
 
 #include "lidar_localization/sensor_data/imu_data.hpp"
 
-#include <random>
+#include <opencv2/core/core.hpp>
 
 namespace lidar_localization {
 
@@ -96,6 +96,8 @@ private:
 
     Vector3d linearized_ba_;
     Vector3d linearized_bg_;
+
+    cv::RNG rng_; 
 
     void ResetState(const IMUData &init_imu_data, IMUPreIntegration &imu_pre_integration);
     void MidPointIntegration(double dt,

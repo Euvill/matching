@@ -18,6 +18,7 @@
 
 #include "lidar_localization/models/ceres_back_end/params/param_pr.hpp"
 
+#include "lidar_localization/models/ceres_back_end/factors/factor_marginalization.hpp"
 #include "lidar_localization/models/ceres_back_end/factors/factor_map_matching_pose.hpp"
 #include "lidar_localization/models/ceres_back_end/factors/factor_relative_pose.hpp"
 #include "lidar_localization/models/ceres_back_end/factors/factor_imu_pre_integration.hpp"
@@ -56,7 +57,6 @@ public:
       Eigen::Quaterniond m_ori;
       Eigen::MatrixXd I;
     };
-
     
     struct ResidualIMUPreIntegration {
       int param_index_i;

@@ -260,7 +260,7 @@ bool BackEnd::UpdateOptimizer(const IMUData &imu_data) {
         speed_bias.ba    = imu_pre_integration_.linearized_ba;
         speed_bias.bg    = imu_pre_integration_.linearized_bg;
 
-        ceres_back_end_ptr_->AddVAGParam(speed_bias, false);
+        ceres_back_end_ptr_->AddVAGParam(speed_bias, true);
     }
     else {
         ceres_back_end_ptr_->AddPRParam(current_key_frame_, false);
@@ -306,12 +306,12 @@ bool BackEnd::UpdateOptimizer(const IMUData &imu_data) {
 }
 
 bool BackEnd::MaybeOptimized() {    
-   bool need_optimize = false; 
+   //bool need_optimize = false; 
 
-    if (counter_.HasEnoughKeyFrames(key_frame_config_.max_key_frame_interval))
-        need_optimize = true;
+    //if (counter_.HasEnoughKeyFrames(key_frame_config_.max_key_frame_interval))
+    //    need_optimize = true;
     
-    if (need_optimize && ceres_back_end_ptr_->Optimize()) {
+    if (ceres_back_end_ptr_->Optimize()) {
         has_new_optimized_ = true;
         return true;
     }

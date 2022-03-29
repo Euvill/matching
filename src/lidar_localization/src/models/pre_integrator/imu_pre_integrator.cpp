@@ -177,8 +177,14 @@ void IMUPreIntegrator::MidPointIntegration(double dt,
     result_delta_p = delta_p + delta_v * dt + 0.5 * un_acc * dt * dt;
     result_delta_v = delta_v + un_acc * dt;
 
-    result_linearized_ba = linearized_ba;
-    result_linearized_bg = linearized_bg;
+    double bia_ = rng_.gaussian(COV.RANDOM_WALK.ACCEL);
+    double big_ = rng_.gaussian(COV.RANDOM_WALK.GYRO);
+
+    Vector3d bia(bia_, bia_, bia_);
+    Vector3d big(big_, big_, big_);
+
+    result_linearized_ba = linearized_ba + bia;
+    result_linearized_bg = linearized_bg + big;
 
     if (update_jacobian) {
         Vector3d w_x = 0.5 * (gyr0 + gyr1) - linearized_bg;
@@ -243,6 +249,8 @@ void IMUPreIntegrator::MidPointIntegration(double dt,
   }
 
 void IMUPreIntegrator::showIMUPreIntegration(const IMUPreIntegration &imu_pre_integration){
+
+    std::cout << std::endl;
 
     std::cout << "IMUPreIntegration:" << std::endl
               << "Time: " << imu_pre_integration.T << std::endl

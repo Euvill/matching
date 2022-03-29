@@ -51,6 +51,7 @@ include(cmake/PCL.cmake)
 include(cmake/sophus.cmake)
 include(cmake/g2o.cmake)
 include(cmake/ceres.cmake)
+include(cmake/opencv.cmake)
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 include(cmake/global_defination.cmake)
