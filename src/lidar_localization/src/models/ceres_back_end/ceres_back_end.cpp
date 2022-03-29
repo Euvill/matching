@@ -178,7 +178,7 @@ bool CeresBackEnd::Optimize() {
             factor_marginalization->SetResMapMatchingPose(factor_map_matching_pose, std::vector<double *>{key_frame_m.pr});
             factor_marginalization->SetResRelativePose(factor_relative_pose, std::vector<double *>{key_frame_m.pr, key_frame_r.pr});
             factor_marginalization->SetResIMUPreIntegration(factor_imu_pre_integration, std::vector<double *>{key_frame_m.pr, speed_bias_m.vag, key_frame_r.pr, speed_bias_r.vag});
-            factor_marginalization->Marginalize(key_frame_r.pr, speed_bias_r.vag);
+            factor_marginalization->Marginalize(key_frame_m.pr, speed_bias_m.vag);
 
             // add marginalization factor into sliding window
             problem.AddResidualBlock(factor_marginalization, NULL, key_frame_r.pr, speed_bias_r.vag);
@@ -254,11 +254,11 @@ int CeresBackEnd::GetNumParamBlocks() {
 
 bool CeresBackEnd::GetLatestOptimizedKeyFrame(KeyFrame &optimized_key_frame) {
     const int N = GetNumParamBlocks();
-    if ( 0 == N ) return false;
+    if (0 == N) return false;
 
     const auto &latest_optimized_key_frame = optimized_key_frames_.back();
 
-    optimized_key_frame = KeyFrame(N-1, latest_optimized_key_frame.time, latest_optimized_key_frame.pr);
+    optimized_key_frame = KeyFrame(N - 1, latest_optimized_key_frame.time, latest_optimized_key_frame.pr);
 
     return true;
 }
@@ -272,7 +272,7 @@ bool CeresBackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame> &optimized_key_fra
     for (int param_id = 0; param_id < N; param_id++) {
         const auto &optimized_key_frame = optimized_key_frames_.at(param_id);
 
-        optimized_key_frames.emplace_back( param_id, optimized_key_frame.time, optimized_key_frame.pr);
+        optimized_key_frames.emplace_back(param_id, optimized_key_frame.time, optimized_key_frame.pr);
     }
 
     return true;

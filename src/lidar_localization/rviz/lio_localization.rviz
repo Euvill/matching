@@ -180,7 +180,7 @@ Visualization Manager:
               Scale: 1
               Value: true
             Value: true
-          Enabled: false
+          Enabled: true
           Keep: 10000000
           Name: optimized_pose
           Position Tolerance: 0.10000000149011612
@@ -196,7 +196,7 @@ Visualization Manager:
             Value: Arrow
           Topic: /optimized_odometry
           Unreliable: false
-          Value: false
+          Value: true
       Enabled: true
       Name: trajectory
     - Class: rviz/Group
@@ -260,8 +260,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 3.8744142055511475
-            Min Value: -9.44607162475586
+            Max Value: 4.904110431671143
+            Min Value: -6.753484725952148
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -325,7 +325,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 1
       Head Length: 1
       Length: 0.30000001192092896
@@ -343,7 +343,7 @@ Visualization Manager:
       Shaft Length: 1
       Topic: /optimized_key_frames
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -379,9 +379,9 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -1.2383173704147339
+        Y: -4.215633869171143
+        Z: 0.0030126164201647043
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -409,4 +409,4 @@ Window Geometry:
     collapsed: false
   Width: 1660
   X: 256
-  Y: 51
+  Y: 27

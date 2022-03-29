@@ -297,7 +297,6 @@ bool BackEnd::UpdateOptimizer(const IMUData &imu_data) {
             if (imu_pre_integrator_ptr_) 
                 imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
         }
-            
     }
 
     last_key_frame_ = current_key_frame_;

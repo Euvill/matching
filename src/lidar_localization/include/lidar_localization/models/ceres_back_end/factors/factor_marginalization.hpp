@@ -86,6 +86,9 @@ public:
 
     bvb_.block<9, 1>(0, 0) += J2_m.transpose() * residuals;
     bvb_.block<9, 1>(9, 0) += J2_r.transpose() * residuals;
+
+    //Jvb_ = 0.5 * (J2_m + J2_r);
+    //evb_ = residuals.block<9, 1>(6, 0);
   }
 
   void Marginalize(const double *raw_param_r_0, const double *raw_param_r_1) {
@@ -138,14 +141,14 @@ public:
     residual.block<6, 1>(0, 0) = (e_ + J_ * dx).block<6, 1>(0, 0);
     residual.block<9, 1>(6, 0) = evb_ + Jvb_ * dvb;
 
-    std::cout << std::endl;
+    /*std::cout << std::endl;
     std::cout << "residual: " << std::endl;
     std::cout << residual(0, 0) << "," << residual(1, 0) << "," << residual(2, 0) << std::endl
               << residual(3, 0) << "," << residual(4, 0) << "," << residual(5, 0) << std::endl
               << residual(6, 0) << "," << residual(7, 0) << "," << residual(8, 0) << std::endl
               << residual(9, 0) << "," << residual(10,0) << "," << residual(11,0) << std::endl
               << residual(12, 0)<< "," << residual(13,0) << "," << residual(14,0) << std::endl;
-    std::cout << std::endl;
+    std::cout << std::endl;*/
 
     // compute jacobian:
     if (jacobians) {
@@ -158,6 +161,7 @@ public:
             Eigen::Map<Eigen::Matrix<double, 15, 9, Eigen::RowMajor>> jacobian_vag(jacobians[1]);
             jacobian_vag.setZero();
             jacobian_vag.block<9, 9>(6, 0) = Jvb_;
+            // jacobian_vag = Jvb_;
         } 
     }
 
@@ -207,6 +211,7 @@ private:
       Eigen::MatrixXd b_marginalized = b_r  - H_rm * H_mm_inv * b_m;
 
       Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(H_marginalized);
+
       Eigen::VectorXd S = Eigen::VectorXd((saes2.eigenvalues().array() > 1.0e-8).select(saes2.eigenvalues().array(), 0));
       Eigen::VectorXd S_inv = Eigen::VectorXd((saes2.eigenvalues().array() > 1.0e-8).select(saes2.eigenvalues().array().inverse(), 0));
 

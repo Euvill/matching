@@ -51,7 +51,7 @@ public:
         //DLOG(INFO) << "residual: " << residual.transpose();
 
         if (jacobians) {
-            if ( jacobians[0] ) {
+            if (jacobians[0]) {
                 Eigen::Map<Eigen::Matrix<double, 6, 7, Eigen::RowMajor>> jacobian_i(jacobians[0]);
 
                 jacobian_i.setZero();
@@ -62,7 +62,7 @@ public:
                 jacobian_i = sqrt_info * jacobian_i;
             }
 
-            if ( jacobians[1] ) {
+            if (jacobians[1]) {
                 Eigen::Map<Eigen::Matrix<double, 6, 7, Eigen::RowMajor>> jacobian_j(jacobians[1]);
 
                 jacobian_j.setZero();

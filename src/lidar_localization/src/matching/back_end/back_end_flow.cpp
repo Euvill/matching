@@ -168,13 +168,13 @@ bool BackEndFlow::PublishData() {
     }
 
     if (back_end_ptr_->HasNewOptimized()) {
-        //KeyFrame key_frame;
-        //back_end_ptr_->GetLatestOptimizedOdometry(key_frame);
-        //optimized_odom_pub_ptr_->Publish(key_frame.pose, key_frame.time);
+        KeyFrame key_frame;
+        back_end_ptr_->GetLatestOptimizedOdometry(key_frame);
+        optimized_odom_pub_ptr_->Publish(key_frame.pose, key_frame.time);
 
-        std::deque<KeyFrame> optimized_key_frames;
-        back_end_ptr_->GetOptimizedKeyFrames(optimized_key_frames);
-        key_frames_pub_ptr_->Publish(optimized_key_frames);
+        //std::deque<KeyFrame> optimized_key_frames;
+        //back_end_ptr_->GetOptimizedKeyFrames(optimized_key_frames);
+        //key_frames_pub_ptr_->Publish(optimized_key_frames);
     }
 
     return true;
