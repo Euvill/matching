@@ -204,6 +204,9 @@ void BackEnd::ResetParam() {
 bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_matching_odom, const IMUData &imu_data, const PoseData &gnss_odom) {
     static KeyFrame last_key_frame;
 
+    Eigen::Vector3f delta_pose = laser_odom.pose.block<3,1>(0, 3) - last_key_frame.pose.block<3,1>(0, 3);
+    double delta_time = laser_odom.time - last_key_frame.time;
+
     if (key_frames_.lidar.empty()) 
     {
         has_new_key_frame_ = true;
@@ -211,7 +214,7 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
             imu_pre_integrator_ptr_->Init(imu_data, imu_pre_integration_);
         }
     } 
-    else if ((laser_odom.pose.block<3,1>(0, 3) - last_key_frame.pose.block<3,1>(0, 3)).lpNorm<1>() > key_frame_config_.max_distance || (laser_odom.time - last_key_frame.time) > key_frame_config_.max_interval)
+    else if (delta_pose.lpNorm<1>() > key_frame_config_.max_distance || delta_time > key_frame_config_.max_interval)
     {
         has_new_key_frame_ = true;
     } 
@@ -225,7 +228,7 @@ bool BackEnd::MaybeNewKeyFrame(const PoseData &laser_odom, const PoseData &map_m
         current_key_frame_.index = key_frames_.lidar.size();
         current_key_frame_.pose  = laser_odom.pose;
 
-        current_key_frame_.vel.v = gnss_odom.vel.v;
+        current_key_frame_.vel.v = delta_pose / delta_time;
         current_key_frame_.vel.w = gnss_odom.vel.w;
 
         current_map_matching_pose_ = map_matching_odom;
