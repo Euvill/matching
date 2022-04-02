@@ -30,7 +30,7 @@ MatchingFlow::MatchingFlow(ros::NodeHandle& nh) {
     map_matching_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/map_matching_odometry", "/n_frame", "/lidar_frame", 100);
 
     // TODO: move lidar TF to sliding window backend
-    laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/n_frame", "/velo_link");
+    laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/n_frame", "/lidar_frame");
 
     matching_ptr_ = std::make_shared<Matching>();
 }
