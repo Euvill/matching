@@ -1,8 +1,3 @@
-/*
- * @Description: frontend node for lio localization
- * @Author: Ge Yao
- * @Date: 2021-01-02 10:47:23
- */
 #include <ros/ros.h>
 #include "glog/logging.h"
 
