@@ -1,8 +1,3 @@
-/*
- * @Description: LIO localization frontend workflow, interface
- * @Author: Ge Yao
- * @Date: 2021-01-02 10:47:23
- */
 #ifndef LIDAR_LOCALIZATION_MATCHING_FRONT_END_MATCHING_FLOW_HPP_
 #define LIDAR_LOCALIZATION_MATCHING_FRONT_END_MATCHING_FLOW_HPP_
 
